@@ -1,0 +1,24 @@
+diff --git a/source/common/locid.cpp b/source/common/locid.cpp
+index 4a73f55..ccc406c 100644
+--- a/source/common/locid.cpp
++++ b/source/common/locid.cpp
+@@ -183,10 +183,16 @@ Locale *locale_set_default_internal(const char *id, UErrorCode& status) {
+     CharString localeNameBuf =
+         canonicalize ? ulocimp_canonicalize(id, status) : ulocimp_getName(id, status);
+ 
+-    if (U_FAILURE(status)) {
+-        return gDefaultLocale;
++    if (U_FAILURE(status) && canonicalize) {
++        // failing, enforce en_US_POSIX and try again
++        id = "en_US_POSIX";
++        status = {};
++        localeNameBuf = ulocimp_canonicalize(id, status);
++        if(U_FAILURE(status)) {
++            return gDefaultLocale;
++        }
+     }
+-
++    
+     if (gDefaultLocalesHashT == nullptr) {
+         gDefaultLocalesHashT = uhash_open(uhash_hashChars, uhash_compareChars, nullptr, &status);
+         if (U_FAILURE(status)) {

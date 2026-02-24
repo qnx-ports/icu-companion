@@ -1,0 +1,133 @@
+# Alpine-Maintainer: Andreas Radke <andyrtr@archlinux.org>
+# Alpine-Contributor: Art Gramlich <art@gramlich-net.com>
+# Maintainer: Felix Xing <fxing@qnx.com>
+pkgname=icu
+pkgver=76.1
+pkgrel=7
+arch="all"
+pkgdesc="International Components for Unicode library"
+url="https://icu.unicode.org"
+license="ICU"
+options="!check"
+depends="libc++ icu-libs"
+makedepends="cmake ninja clang libc++-dev"
+subpackages="
+    $pkgname-static
+    $pkgname-dbg
+    $pkgname-dev
+    $pkgname-doc
+    $pkgname-libs
+    $pkgname-data:_data:noarch
+"
+builddir="$srcdir/icu"
+source="https://github.com/unicode-org/icu/releases/download/release-${pkgver//./-}/icu4c-${pkgver//./_}-src.tgz
+        001-add-locae-canonicalize-for-und.patch"
+_icudtfile=icudt${pkgver%%.*}l.dat
+
+build_host() {
+    # These variables are set in
+    unset CC CXX LD CPPFLAGS CXXFLAGS CFLAGS LDFLAGS
+    # Build on host
+    mkdir $srcdir/build_host
+    cd $srcdir/build_host
+    $srcdir/icu/source/configure
+    make VERBOSE=1
+}
+
+build() {
+    mkdir $srcdir/build_target
+    cd $srcdir/build_target
+    export CFLAGS="$CPPFLAGS -O2 -fPIC -ggdb"
+    export CXXFLAGS="$CPPFLAGS -O2 -fPIC -ggdb"
+    export CC=clang
+    export CXX=clang++
+    export AR=llvm-ar
+    export NM=llvm-nm
+    export RANLIB=llvm-ranlib
+
+    if [[ $CBUILD = $CHOST ]]; then
+        # Compile natively
+        $srcdir/icu/source/configure \
+            --prefix=/usr \
+            --build=$CBUILD \
+            --host=$CHOST \
+            --enable-static \
+            --with-data-packaging=archive \
+            --disable-samples \
+            --sysconfdir=/etc \
+            --mandir=/usr/share/man \
+            --sbindir=/usr/bin
+    else
+        # Cross compiling
+        build_host
+        $srcdir/icu/source/configure \
+            --prefix=/usr \
+            --build=$CBUILD \
+            --target=$CHOST \
+            --host=$CHOST \
+            --with-cross-build=$srcdir/build_host \
+            --enable-static \
+            --with-data-packaging=archive \
+            --disable-samples \
+            --sysconfdir=/etc \
+            --mandir=/usr/share/man \
+            --sbindir=/usr/bin
+    fi
+    make
+}
+
+check() {
+    cd icu/source
+    make check
+}
+
+package() {
+    cd $srcdir/build_target
+    make DESTDIR="${pkgdir}" install
+    chmod +x "$pkgdir"/usr/bin/icu-config
+    install -Dm644 "$srcdir"/icu/license.html -t "$pkgdir"/usr/share/licenses/icu/
+}
+
+dev() {
+	default_dev
+
+	amove usr/lib/icu
+	amove usr/lib/libicutest.so.*
+	amove usr/share/icu/*/LICENSE
+	amove usr/share/icu/*/config
+	amove usr/share/icu/*/install-sh
+	amove usr/share/icu/*/mkinstalldirs
+}
+
+libs() {
+    pkgdesc="$pkgdesc (libraries)"
+    depends="$pkgname-data=$pkgver-r$pkgrel libc++"
+    replaces="icu"
+
+    # Data stub required by the Common and I18n libraries.
+    amove usr/lib/libicudata.so.[0-9]*
+    # A library that contains many locale based internationalization (i18n) functions.
+    amove usr/lib/libicui18n.so.[0-9]*
+    # An optional library that provides a stdio like API with Unicode support.
+    amove usr/lib/libicuio.so.[0-9]*
+    # Base library required by all other ICU libraries.
+    amove usr/lib/libicuuc.so.[0-9]*
+
+    # An internal library that contains internal APIs that are only used by ICU’s tools.
+    # Keep in the base package.
+    #amove usr/lib/libicutu.so.[0-9]*
+}
+
+_data() {
+    pkgdesc="Full ICU data"
+#    provides="$pkgname-data=$pkgver-r$pkgrel"
+#    provider_priority=10  # lowest (other provider is icu-data-en)
+
+    cd $srcdir/build_target
+    amove usr/share/icu/$pkgver/$_icudtfile
+}
+
+sha512sums="
+b702ab62fb37a1574d5f4a768326d0f8fa30d9db5b015605b5f8215b5d8547f83d84880c586d3dcc7b6c76f8d47ef34e04b0f51baa55908f737024dd79a42a6c  icu4c-76_1-src.tgz
+b5808eb7df90a53d87f0c6200f60aca0d8c5b1be6b730a9d37bef2bc10c79182e192f4130728df784b860371b2966c7c40fcd63c96245010e3ecb5413b6cb032  001-add-locae-canonicalize-for-und.patch
+"
