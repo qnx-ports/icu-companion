@@ -3,7 +3,7 @@
 # Maintainer: Felix Xing <fxing@qnx.com>
 pkgname=icu
 pkgver=76.1
-pkgrel=${pkgrel:-0}
+pkgrel=7
 arch="all"
 pkgdesc="International Components for Unicode library"
 url="https://icu.unicode.org"
@@ -127,7 +127,6 @@ _data() {
     amove usr/share/icu/$pkgver/$_icudtfile
 }
 
-options="$options ${DISABLE_CHECK:+!check}"
 sha512sums="
 b702ab62fb37a1574d5f4a768326d0f8fa30d9db5b015605b5f8215b5d8547f83d84880c586d3dcc7b6c76f8d47ef34e04b0f51baa55908f737024dd79a42a6c  icu4c-76_1-src.tgz
 b5808eb7df90a53d87f0c6200f60aca0d8c5b1be6b730a9d37bef2bc10c79182e192f4130728df784b860371b2966c7c40fcd63c96245010e3ecb5413b6cb032  001-add-locae-canonicalize-for-und.patch
